@@ -180,10 +180,10 @@ void            plicinithart(void);
 int             plic_claim(void);
 void            plic_complete(int);
 
-// virtio_disk.c
-void            virtio_disk_init(void);
-void            virtio_disk_rw(struct buf *, int);
-void            virtio_disk_intr(void);
+// disk.c
+void            disk_init(void);
+void            disk_rw(struct buf *, int);
+void            disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
