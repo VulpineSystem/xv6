@@ -17,13 +17,13 @@
 #define R(r) ((volatile uint32 *)(DISK0 + (r)))
 
 static struct disk {
-  struct spinlock vdisk_lock;
+  struct spinlock disk_lock;
 } disk;
 
 void
 disk_init(void)
 {
-  initlock(&disk.vdisk_lock, "virtio_disk");
+  initlock(&disk.disk_lock, "disk");
 
   if(*R(DISK_MMIO_MAGIC_VALUE) != 0x666F7864 ||
      *R(DISK_MMIO_VERSION) != 1){
@@ -38,9 +38,7 @@ disk_rw(struct buf *b, int write)
 {
   uint64 sector = b->blockno * (BSIZE / 512);
 
-  acquire(&disk.vdisk_lock);
-
-  printf("buffer address: %p\n", &b->data);
+  acquire(&disk.disk_lock);
 
   *R(DISK_MMIO_BUFFER_ADDR_HIGH) = (uint64) &b->data >> 32;
   *R(DISK_MMIO_BUFFER_ADDR_LOW) = (uint64) &b->data & 0xFFFFFFFF;
@@ -57,7 +55,7 @@ disk_rw(struct buf *b, int write)
 
   *R(DISK_MMIO_NOTIFY) = 0;
 
-  release(&disk.vdisk_lock);
+  release(&disk.disk_lock);
 }
 
 void
