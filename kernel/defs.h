@@ -186,5 +186,8 @@ void            disk_init(void);
 void            disk_rw(struct buf *, int);
 void            disk_intr(void);
 
+// framebuffer.c
+void            framebufferinit(void);
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

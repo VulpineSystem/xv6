@@ -23,6 +23,11 @@ main(void)
   dup(0);  // stdout
   dup(0);  // stderr
 
+  if(open("framebuffer", O_RDWR) < 0){
+    mknod("framebuffer", FRAMEBUFFER, 0);
+    open("framebuffer", O_RDWR);
+  }
+
   for(;;){
     printf("init: starting sh\n");
     pid = fork();
