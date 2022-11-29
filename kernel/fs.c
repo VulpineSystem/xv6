@@ -24,7 +24,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with
 // only one device
-struct superblock sb; 
+struct superblock sb;
 
 // Read the super block.
 static void
@@ -182,7 +182,7 @@ void
 iinit()
 {
   int i = 0;
-  
+
   initlock(&itable.lock, "itable");
   for(i = 0; i < NINODE; i++) {
     initsleeplock(&itable.inode[i].lock, "inode");
@@ -336,27 +336,22 @@ iunlock(struct inode *ip)
 void
 iput(struct inode *ip)
 {
-  acquire(&itable.lock);
-
-  if(ip->ref == 1 && ip->valid && ip->nlink == 0){
-    // inode has no links and no other references: truncate and free.
-
-    // ip->ref == 1 means no other process can have ip locked,
-    // so this acquiresleep() won't block (or deadlock).
-    acquiresleep(&ip->lock);
-
-    release(&itable.lock);
-
-    itrunc(ip);
-    ip->type = 0;
-    iupdate(ip);
-    ip->valid = 0;
-
-    releasesleep(&ip->lock);
-
+  acquiresleep(&ip->lock);
+  if(ip->valid && ip->nlink == 0){
     acquire(&itable.lock);
+    int r = ip->ref;
+    release(&itable.lock);
+    if(r == 1){
+      // inode has no links and no other references: truncate and free.
+      itrunc(ip);
+      ip->type = 0;
+      iupdate(ip);
+      ip->valid = 0;
+    }
   }
+  releasesleep(&ip->lock);
 
+  acquire(&itable.lock);
   ip->ref--;
   release(&itable.lock);
 }
@@ -378,46 +373,74 @@ iunlockput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
-// returns 0 if out of disk space.
 static uint
 bmap(struct inode *ip, uint bn)
 {
-  uint addr, *a;
-  struct buf *bp;
+  uint addr, *a = 0;
+  struct buf *bp = 0;
 
-  if(bn < NDIRECT){
-    if((addr = ip->addrs[bn]) == 0){
-      addr = balloc(ip->dev);
-      if(addr == 0)
-        return 0;
-      ip->addrs[bn] = addr;
-    }
-    return addr;
+  int NI_count = 1;
+  int NI_size = NINDIRECT - 1; //128 - 1 = 127
+
+  //find which indirect block bn is located in
+  while(bn >= NI_size){
+
+    bn = bn - NI_size;
+    NI_count++;
   }
-  bn -= NDIRECT;
 
-  if(bn < NINDIRECT){
-    // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0){
-      addr = balloc(ip->dev);
-      if(addr == 0)
-        return 0;
-      ip->addrs[NDIRECT] = addr;
-    }
-    bp = bread(ip->dev, addr);
-    a = (uint*)bp->data;
-    if((addr = a[bn]) == 0){
-      addr = balloc(ip->dev);
-      if(addr){
-        a[bn] = addr;
-        log_write(bp);
+  int new_block = 0;
+
+  //find the block number of the indirect block
+  int i;
+  for(i = 1; i <= NI_count; i++){
+    if(i == 1){
+      if((addr = ip->addrs[0]) == 0){
+        if((addr = balloc(ip->dev)) == -1){
+          panic("bmap: out of range");
+        }
+
+        // Load indirect block, allocating if necessary.
+        ip->addrs[0] = addr;
+        new_block = 1;
       }
     }
-    brelse(bp);
-    return addr;
+    else if((addr = a[NI_size]) == 0){
+      if((addr = balloc(ip->dev)) == -1){
+        panic("bmap: out of range");
+      }
+
+      a[NI_size] = addr;
+      new_block = 1;
+      log_write(bp);
+    }
+
+    if(i >= 2) {
+      brelse(bp);
+    }
+
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+
+    if(new_block) {
+      a[NI_size] = 0;
+      new_block = 0;
+      //log_write(bp);
+    }
   }
 
-  panic("bmap: out of range");
+  if((addr = a[bn]) == 0){
+    if((addr = balloc(ip->dev)) == -1){
+      panic("bmap: out of range");
+    }
+
+    a[bn] = addr;
+    log_write(bp);
+  }
+
+  brelse(bp);
+
+  return addr;
 }
 
 // Truncate inode (discard contents).
@@ -466,8 +489,6 @@ stati(struct inode *ip, struct stat *st)
 
 // Read data from inode.
 // Caller must hold ip->lock.
-// If user_dst==1, then dst is a user virtual address;
-// otherwise, dst is a kernel address.
 int
 readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
@@ -497,11 +518,6 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 
 // Write data to inode.
 // Caller must hold ip->lock.
-// If user_src==1, then src is a user virtual address;
-// otherwise, src is a kernel address.
-// Returns the number of bytes successfully written.
-// If the return value is less than the requested n,
-// there was an error of some kind.
 int
 writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
@@ -527,14 +543,10 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
     brelse(bp);
   }
 
-  if(off > ip->size)
+  if(n > 0 && off > ip->size){
     ip->size = off;
-
-  // write the i-node back to disk even if the size didn't change
-  // because the loop above might have called bmap() and added a new
-  // block to ip->addrs[].
-  iupdate(ip);
-
+    iupdate(ip);
+  }
   return tot;
 }
 

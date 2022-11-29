@@ -134,7 +134,7 @@ main(int argc, char *argv[])
       shortname = argv[i] + 5;
     else
       shortname = argv[i];
-    
+
     assert(index(shortname, '/') == 0);
 
     if((fd = open(argv[i], 0)) < 0)
@@ -257,30 +257,77 @@ iappend(uint inum, void *xp, int n)
   struct dinode din;
   char buf[BSIZE];
   uint indirect[NINDIRECT];
-  uint x;
+  uint x, y; //y is used to save the last indirect block's block number
 
   rinode(inum, &din);
   off = xint(din.size);
   // printf("append inum %d at off %d sz %d\n", inum, off, n);
   while(n > 0){
+
     fbn = off / BSIZE;
-    assert(fbn < MAXFILE);
-    if(fbn < NDIRECT){
-      if(xint(din.addrs[fbn]) == 0){
-        din.addrs[fbn] = xint(freeblock++);
-      }
-      x = xint(din.addrs[fbn]);
-    } else {
-      if(xint(din.addrs[NDIRECT]) == 0){
-        din.addrs[NDIRECT] = xint(freeblock++);
-      }
-      rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
-      if(indirect[fbn - NDIRECT] == 0){
-        indirect[fbn - NDIRECT] = xint(freeblock++);
-        wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
-      }
-      x = xint(indirect[fbn-NDIRECT]);
+
+    //assert(fbn < MAXFILE);
+
+    int NI_count = 1;
+    int NI_size = NINDIRECT - 1; //128 - 1 = 127
+
+    // find which indirect block bn is located in
+    while(fbn >= NI_size){
+      fbn = fbn - NI_size;
+      NI_count++;
     }
+
+    int new_block = 0;
+
+    // find the block number of the INDIRECT BLOCK
+    // if need to allocate a new indirect block, then need to save the block's block number in y
+    int i;
+    for(i = 1; i <= NI_count; i++){
+      if(i == 1){
+
+        // read the sector that contains the indirect table into indirect
+        if(NI_count == 1) {
+          if(xint(din.addrs[0]) == 0){
+            din.addrs[0] = xint(freeblock++);
+            new_block = 1;
+          }
+        }
+
+        rsect(xint(din.addrs[0]),(char*)indirect);
+      }
+      else{
+        if(indirect[NI_size] == 0){
+          indirect[NI_size] = xint(freeblock++);
+          new_block = 1;
+
+          if(i == 2) wsect(xint(din.addrs[0]),(char*)indirect);
+          else wsect(y,(char*)indirect);
+        }
+
+        y = xint(indirect[NI_size]);
+
+        // read the sector that contains the indirect table into indirect
+        rsect(y,(char*)indirect);
+      }
+
+      if(new_block) {
+        indirect[NI_size] = 0;
+        new_block = 0;
+      }
+    }
+
+    if(indirect[fbn] == 0){
+      indirect[fbn] = xint(freeblock++);
+      if(NI_count == 1) wsect(xint(din.addrs[0]), (char*)indirect);
+      else wsect(y, (char*)indirect);
+    }
+
+    //get the sector number
+    x = xint(indirect[fbn]);
+
+    //restore fbn
+    fbn = off/BSIZE;
+
     n1 = min(n, (fbn + 1) * BSIZE - off);
     rsect(x, buf);
     bcopy(p, buf + off - (fbn * BSIZE), n1);
