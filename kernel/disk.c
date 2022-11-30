@@ -55,6 +55,9 @@ disk_rw(struct buf *b, int write)
 
   *R(DISK_MMIO_NOTIFY) = 0;
 
+  while(*R(DISK_MMIO_DONE) != 0);
+  *R(DISK_MMIO_DONE) = -1;
+
   release(&disk.disk_lock);
 }
 
