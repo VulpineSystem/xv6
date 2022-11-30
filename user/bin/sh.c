@@ -13,6 +13,8 @@
 
 #define MAXARGS 10
 
+#define BIN_PATH "/bin/"
+
 struct cmd {
   int type;
 };
@@ -59,6 +61,7 @@ void
 runcmd(struct cmd *cmd)
 {
   int p[2];
+  char bin_buf[104];
   struct backcmd *bcmd;
   struct execcmd *ecmd;
   struct listcmd *lcmd;
@@ -76,7 +79,14 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(1);
+
+    // first, try with the path specified
     exec(ecmd->argv[0], ecmd->argv);
+
+    // otherwise, try to execute a binary in /bin
+    strcpy(&bin_buf[0], BIN_PATH);
+    strcpy(&bin_buf[5], ecmd->argv[0]);
+    exec(bin_buf, ecmd->argv);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
