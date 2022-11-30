@@ -68,8 +68,8 @@ xint(uint x)
 int
 main(int argc, char *argv[])
 {
-  int i, cc, fd;
-  uint rootino, inum, off;
+  int i, cc, fd, this_file_is_in_bin;
+  uint rootino, binino, inum, off;
   struct dirent de;
   char buf[BSIZE];
   struct dinode din;
@@ -117,6 +117,8 @@ main(int argc, char *argv[])
   rootino = ialloc(T_DIR);
   assert(rootino == ROOTINO);
 
+  binino = ialloc(T_DIR);
+
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, ".");
@@ -127,13 +129,23 @@ main(int argc, char *argv[])
   strcpy(de.name, "..");
   iappend(rootino, &de, sizeof(de));
 
+  bzero(&de, sizeof(de));
+  de.inum = xshort(binino);
+  strcpy(de.name, "bin");
+  iappend(rootino, &de, sizeof(de));
+
   for(i = 2; i < argc; i++){
-    // get rid of "user/"
     char *shortname;
-    if(strncmp(argv[i], "user/", 5) == 0)
+    if(strncmp(argv[i], "user/bin/", 9) == 0) {
+      shortname = argv[i] + 9;
+      this_file_is_in_bin = 1;
+    } else if(strncmp(argv[i], "user/", 5) == 0) {
       shortname = argv[i] + 5;
-    else
+      this_file_is_in_bin = 0;
+    } else {
       shortname = argv[i];
+      this_file_is_in_bin = 0;
+    }
 
     assert(index(shortname, '/') == 0);
 
@@ -152,7 +164,7 @@ main(int argc, char *argv[])
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, shortname, DIRSIZ);
-    iappend(rootino, &de, sizeof(de));
+    iappend(this_file_is_in_bin ? binino : rootino, &de, sizeof(de));
 
     while((cc = read(fd, buf, sizeof(buf))) > 0)
       iappend(inum, buf, cc);

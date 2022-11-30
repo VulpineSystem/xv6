@@ -9,7 +9,7 @@
 #include "user/user.h"
 #include "kernel/fcntl.h"
 
-char *argv[] = { "sh", 0 };
+char *argv[] = { "/bin/sh", 0 };
 
 int
 main(void)
@@ -36,8 +36,8 @@ main(void)
       exit(1);
     }
     if(pid == 0){
-      exec("sh", argv);
-      printf("init: exec sh failed\n");
+      exec("/bin/sh", argv);
+      printf("init: exec /bin/sh failed\n");
       exit(1);
     }
 
