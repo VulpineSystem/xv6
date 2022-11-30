@@ -6,8 +6,11 @@
 #define LSHIFT_RELEASE 0xAA
 #define RSHIFT_PRESS   0x36
 #define RSHIFT_RELEASE 0xB6
+#define LCTRL_PRESS    0x1D
+#define LCTRL_RELEASE  0x9D
 
 int shift = 0;
+int ctrl = 0;
 
 char scancode_map[128] = {
   0,  27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
@@ -88,6 +91,12 @@ read_keyboard()
   } else if (scancode == LSHIFT_RELEASE || scancode == RSHIFT_RELEASE) {
     shift = 0;
     scancode = 0;
+  } else if (scancode == LCTRL_PRESS) {
+    ctrl = 1;
+    scancode = 0;
+  } else if (scancode == LCTRL_RELEASE) {
+    ctrl = 0;
+    scancode = 0;
   }
 
   // only care about make scancodes, not break scancodes
@@ -102,6 +111,8 @@ scancode_to_ascii(int scancode)
 {
   if (shift)
     return scancode_map_shift[scancode];
+  else if (ctrl)
+    return scancode ? scancode_map_shift[scancode] - '@' : 0;
   else
     return scancode_map[scancode];
 }

@@ -3,7 +3,10 @@
 // Reads are line at a time.
 // Implements special input characters:
 //   newline -- end of line
-//   control-p on uart -- print process list
+//   control-h -- backspace
+//   control-u -- kill line
+//   control-d -- end of file
+//   control-p -- print process list
 //
 
 #include <stdarg.h>
