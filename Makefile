@@ -2,36 +2,36 @@ K=kernel
 U=user
 
 OBJS = \
-  $K/entry.o \
-  $K/start.o \
-  $K/console.o \
-  $K/printf.o \
-  $K/uart.o \
-  $K/kalloc.o \
-  $K/spinlock.o \
-  $K/string.o \
-  $K/main.o \
-  $K/vm.o \
-  $K/proc.o \
-  $K/swtch.o \
-  $K/trampoline.o \
-  $K/trap.o \
-  $K/syscall.o \
-  $K/sysproc.o \
-  $K/bio.o \
-  $K/fs.o \
-  $K/log.o \
-  $K/sleeplock.o \
-  $K/file.o \
-  $K/pipe.o \
-  $K/exec.o \
-  $K/sysfile.o \
-  $K/kernelvec.o \
-  $K/plic.o \
-  $K/disk.o \
-  $K/framebuffer.o \
-  $K/fb_console.o \
-  $K/keyboard.o
+	$K/entry.o \
+	$K/start.o \
+	$K/console.o \
+	$K/printf.o \
+	$K/uart.o \
+	$K/kalloc.o \
+	$K/spinlock.o \
+	$K/string.o \
+	$K/main.o \
+	$K/vm.o \
+	$K/proc.o \
+	$K/swtch.o \
+	$K/trampoline.o \
+	$K/trap.o \
+	$K/syscall.o \
+	$K/sysproc.o \
+	$K/bio.o \
+	$K/fs.o \
+	$K/log.o \
+	$K/sleeplock.o \
+	$K/file.o \
+	$K/pipe.o \
+	$K/exec.o \
+	$K/sysfile.o \
+	$K/kernelvec.o \
+	$K/plic.o \
+	$K/disk.o \
+	$K/framebuffer.o \
+	$K/fb_console.o \
+	$K/keyboard.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -119,23 +119,25 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 .PRECIOUS: %.o
 
 UPROGS=\
-	$U/bin/_cat\
-	$U/bin/_echo\
-	$U/bin/_forktest\
-	$U/bin/_grep\
-	$U/_init\
-	$U/bin/_kill\
-	$U/bin/_ln\
-	$U/bin/_ls\
-	$U/bin/_mkdir\
-	$U/bin/_rm\
-	$U/bin/_sh\
-	$U/bin/_stressfs\
-	$U/bin/_usertests\
-	$U/bin/_grind\
-	$U/bin/_wc\
-	$U/bin/_zombie\
-	$U/bin/_fox\
+	$U/_init \
+	$U/bin/_cat \
+	$U/bin/_echo \
+	$U/bin/_forktest \
+	$U/bin/_grep \
+	$U/bin/_kill \
+	$U/bin/_ln \
+	$U/bin/_ls \
+	$U/bin/_mkdir \
+	$U/bin/_rm \
+	$U/bin/_sh \
+	$U/bin/_stressfs \
+	$U/bin/_usertests \
+	$U/bin/_grind \
+	$U/bin/_wc \
+	$U/bin/_zombie \
+	$U/bin/_fox \
+	$U/bin/_cp \
+	$U/bin/_mv
 
 fs.img: mkfs/mkfs $(UPROGS)
 	mkfs/mkfs fs.img $(UPROGS)
