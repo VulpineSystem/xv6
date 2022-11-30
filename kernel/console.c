@@ -35,15 +35,18 @@ consputc(int c)
 {
   if(c == BACKSPACE){
     // if the user typed backspace, overwrite with a space.
-    uartputc_sync('\b'); uartputc_sync(' '); uartputc_sync('\b');
+    fb_console_print_character('\b');
+    fb_console_print_character(' ');
+    fb_console_print_character('\b');
   } else {
-    uartputc_sync(c);
+    fb_console_print_character(c);
   }
+  fb_console_redraw_line();
 }
 
 struct {
   struct spinlock lock;
-  
+
   // input
 #define INPUT_BUF_SIZE 128
   char buf[INPUT_BUF_SIZE];
@@ -64,7 +67,8 @@ consolewrite(int user_src, uint64 src, uint off, int n)
     char c;
     if(either_copyin(&c, user_src, src+i, 1) == -1)
       break;
-    uartputc(c);
+    fb_console_print_character(c);
+    fb_console_redraw_line();
   }
 
   return i;
@@ -174,7 +178,7 @@ consoleintr(int c)
     }
     break;
   }
-  
+
   release(&cons.lock);
 }
 

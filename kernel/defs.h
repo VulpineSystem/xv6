@@ -189,5 +189,10 @@ void            disk_intr(void);
 // framebuffer.c
 void            framebufferinit(void);
 
+// fb_console.c
+void            fb_console_print_character(char);
+void            fb_console_redraw();
+void            fb_console_redraw_line();
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
