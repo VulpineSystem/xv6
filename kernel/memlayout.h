@@ -25,6 +25,9 @@
 #define DISK0 0x10001000
 #define DISK0_IRQ 1
 
+// keyboard mmio interface
+#define KBD0 0x10002000
+
 #define FRAMEBUFFER0 0x80600000
 #define FRAMEBUFFER0_SIZE 0x0012C000
 

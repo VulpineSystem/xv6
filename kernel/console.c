@@ -1,12 +1,9 @@
 //
-// Console input and output, to the uart.
+// Console input and output, to the framebuffer.
 // Reads are line at a time.
 // Implements special input characters:
 //   newline -- end of line
-//   control-h -- backspace
-//   control-u -- kill line
-//   control-d -- end of file
-//   control-p -- print process list
+//   control-p on uart -- print process list
 //
 
 #include <stdarg.h>
@@ -26,7 +23,7 @@
 #define C(x)  ((x)-'@')  // Control-x
 
 //
-// send one character to the uart.
+// send one character to the console.
 // called by printf(), and to echo input characters,
 // but not from write().
 //
@@ -46,13 +43,6 @@ consputc(int c)
 
 struct {
   struct spinlock lock;
-
-  // input
-#define INPUT_BUF_SIZE 128
-  char buf[INPUT_BUF_SIZE];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
 } cons;
 
 //
@@ -84,31 +74,18 @@ int
 consoleread(int user_dst, uint64 dst, uint off, int n)
 {
   uint target;
-  int c;
+  int c = 0;
   char cbuf;
 
   target = n;
   acquire(&cons.lock);
   while(n > 0){
-    // wait until interrupt handler has put some
-    // input into cons.buffer.
-    while(cons.r == cons.w){
+    while(c == 0){
       if(killed(myproc())){
         release(&cons.lock);
         return -1;
       }
-      sleep(&cons.r, &cons.lock);
-    }
-
-    c = cons.buf[cons.r++ % INPUT_BUF_SIZE];
-
-    if(c == C('D')){  // end-of-file
-      if(n < target){
-        // Save ^D for next time, to make sure
-        // caller gets a 0-byte result.
-        cons.r--;
-      }
-      break;
+      c = scancode_to_ascii(read_keyboard());
     }
 
     // copy the input byte to the user-space buffer.
@@ -118,6 +95,8 @@ consoleread(int user_dst, uint64 dst, uint off, int n)
 
     dst++;
     --n;
+
+    consputc(c);
 
     if(c == '\n'){
       // a whole line has arrived, return to
@@ -131,10 +110,7 @@ consoleread(int user_dst, uint64 dst, uint off, int n)
 }
 
 //
-// the console input interrupt handler.
 // uartintr() calls this for input character.
-// do erase/kill processing, append to cons.buf,
-// wake up consoleread() if a whole line has arrived.
 //
 void
 consoleintr(int c)
@@ -144,38 +120,6 @@ consoleintr(int c)
   switch(c){
   case C('P'):  // Print process list.
     procdump();
-    break;
-  case C('U'):  // Kill line.
-    while(cons.e != cons.w &&
-          cons.buf[(cons.e-1) % INPUT_BUF_SIZE] != '\n'){
-      cons.e--;
-      consputc(BACKSPACE);
-    }
-    break;
-  case C('H'): // Backspace
-  case '\x7f': // Delete key
-    if(cons.e != cons.w){
-      cons.e--;
-      consputc(BACKSPACE);
-    }
-    break;
-  default:
-    if(c != 0 && cons.e-cons.r < INPUT_BUF_SIZE){
-      c = (c == '\r') ? '\n' : c;
-
-      // echo back to the user.
-      consputc(c);
-
-      // store for consumption by consoleread().
-      cons.buf[cons.e++ % INPUT_BUF_SIZE] = c;
-
-      if(c == '\n' || c == C('D') || cons.e-cons.r == INPUT_BUF_SIZE){
-        // wake up consoleread() if a whole line (or end-of-file)
-        // has arrived.
-        cons.w = cons.e;
-        wakeup(&cons.r);
-      }
-    }
     break;
   }
 

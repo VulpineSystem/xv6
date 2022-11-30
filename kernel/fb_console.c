@@ -29,7 +29,7 @@ fb_console_draw_character(uint x, uint y, char character)
 }
 
 void
-fb_console_redraw()
+fb_console_redraw(void)
 {
   for (uint y = 0; y < CONSOLE_HEIGHT; y++) {
     for (uint x = 0; x < CONSOLE_WIDTH; x++) {
@@ -43,7 +43,7 @@ fb_console_redraw()
 }
 
 void
-fb_console_redraw_line()
+fb_console_redraw_line(void)
 {
   for (uint x = 0; x < CONSOLE_WIDTH; x++) {
     if (on_screen_buffer[console_y][x] != update_buffer[console_y][x]) {
@@ -54,7 +54,7 @@ fb_console_redraw_line()
 }
 
 void
-fb_console_scroll()
+fb_console_scroll(void)
 {
   for (uint i = 1; i < CONSOLE_HEIGHT; i++) {
     memmove(&update_buffer[i - 1], &on_screen_buffer[i], CONSOLE_WIDTH);

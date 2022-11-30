@@ -27,6 +27,9 @@ kvmmake(void)
   // framebuffer
   kvmmap(kpgtbl, FRAMEBUFFER0, FRAMEBUFFER0, FRAMEBUFFER0_SIZE, PTE_R | PTE_W);
 
+  // keyboard
+  kvmmap(kpgtbl, KBD0, KBD0, PGSIZE, PTE_R);
+
   // uart registers
   kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
 

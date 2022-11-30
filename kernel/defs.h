@@ -191,8 +191,12 @@ void            framebufferinit(void);
 
 // fb_console.c
 void            fb_console_print_character(char);
-void            fb_console_redraw();
-void            fb_console_redraw_line();
+void            fb_console_redraw(void);
+void            fb_console_redraw_line(void);
+
+// keyboard.c
+int             read_keyboard(void);
+int             scancode_to_ascii(int);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
