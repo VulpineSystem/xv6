@@ -19,7 +19,6 @@
 #include "defs.h"
 #include "proc.h"
 
-#define BACKSPACE 0x100
 #define C(x)  ((x)-'@')  // Control-x
 
 //
@@ -30,7 +29,7 @@
 void
 consputc(int c)
 {
-  if(c == BACKSPACE){
+  if(c == '\b'){
     // if the user typed backspace, overwrite with a space.
     fb_console_print_character('\b');
     fb_console_print_character(' ');
@@ -43,6 +42,14 @@ consputc(int c)
 
 struct {
   struct spinlock lock;
+
+  // input
+#define INPUT_BUF_SIZE 128
+  char buf[INPUT_BUF_SIZE];
+  uint r; // Read index
+  uint w; // Write index
+  uint e; // Edit index
+  int do_read;
 } cons;
 
 //
@@ -70,6 +77,10 @@ consolewrite(int user_src, uint64 src, uint off, int n)
 // user_dist indicates whether dst is a user
 // or kernel address.
 //
+// this is a mishmash of the previous console
+// driver code, and new driver code. try to not
+// lose too many braincells by looking at this.
+//
 int
 consoleread(int user_dst, uint64 dst, uint off, int n)
 {
@@ -79,13 +90,58 @@ consoleread(int user_dst, uint64 dst, uint off, int n)
 
   target = n;
   acquire(&cons.lock);
-  while(n > 0){
-    while(c == 0){
-      if(killed(myproc())){
-        release(&cons.lock);
-        return -1;
+
+  while(cons.do_read == 0){
+    if(killed(myproc())){
+      release(&cons.lock);
+      return -1;
+    }
+    c = scancode_to_ascii(read_keyboard());
+    switch(c){
+    case C('P'):  // Print process list.
+      procdump();
+      break;
+    case C('U'):  // Kill line.
+      while(cons.e != cons.w &&
+            cons.buf[(cons.e-1) % INPUT_BUF_SIZE] != '\n'){
+        cons.e--;
+        consputc('\b');
       }
-      c = scancode_to_ascii(read_keyboard());
+      break;
+    case C('H'): // Backspace
+    case '\x7f': // Delete key
+      if(cons.e != cons.w){
+        cons.e--;
+        consputc('\b');
+      }
+      break;
+    default:
+      if(c != 0 && cons.e-cons.r < INPUT_BUF_SIZE){
+        // echo back to the user.
+        consputc(c);
+
+        // store for consumption.
+        cons.buf[cons.e++ % INPUT_BUF_SIZE] = c;
+
+        if(c == '\n' || c == C('D') || cons.e-cons.r == INPUT_BUF_SIZE){
+          cons.w = cons.e;
+          cons.do_read = 1;
+        }
+      }
+      break;
+    }
+  }
+
+  while(n > 0){
+    c = cons.buf[cons.r++ % INPUT_BUF_SIZE];
+
+    if(c == C('D')){  // end-of-file
+      if(n < target){
+        // Save ^D for next time, to make sure
+        // caller gets a 0-byte result.
+        cons.r--;
+      }
+      break;
     }
 
     // copy the input byte to the user-space buffer.
@@ -96,11 +152,10 @@ consoleread(int user_dst, uint64 dst, uint off, int n)
     dst++;
     --n;
 
-    consputc(c);
-
     if(c == '\n'){
       // a whole line has arrived, return to
       // the user-level read().
+      cons.do_read = 0;
       break;
     }
   }
@@ -115,15 +170,7 @@ consoleread(int user_dst, uint64 dst, uint off, int n)
 void
 consoleintr(int c)
 {
-  acquire(&cons.lock);
-
-  switch(c){
-  case C('P'):  // Print process list.
-    procdump();
-    break;
-  }
-
-  release(&cons.lock);
+  // nothing
 }
 
 void
@@ -132,6 +179,8 @@ consoleinit(void)
   initlock(&cons.lock, "cons");
 
   uartinit();
+
+  cons.do_read = 0;
 
   // connect read and write system calls
   // to consoleread and consolewrite.
