@@ -16,16 +16,18 @@ main(void)
 {
   int pid, wpid;
 
-  if(open("console", O_RDWR) < 0){
-    mknod("console", CONSOLE, 0);
-    open("console", O_RDWR);
+  mkdir("/dev");
+
+  if(open("/dev/console", O_RDWR) < 0){
+    mknod("/dev/console", CONSOLE, 0);
+    open("/dev/console", O_RDWR);
   }
   dup(0);  // stdout
   dup(0);  // stderr
 
-  if(open("framebuffer", O_RDWR) < 0){
-    mknod("framebuffer", FRAMEBUFFER, 0);
-    open("framebuffer", O_RDWR);
+  if(open("/dev/framebuffer", O_RDWR) < 0){
+    mknod("/dev/framebuffer", FRAMEBUFFER, 0);
+    open("/dev/framebuffer", O_RDWR);
   }
 
   for(;;){
