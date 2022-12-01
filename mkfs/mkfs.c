@@ -78,7 +78,7 @@ main(int argc, char *argv[])
   static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
 
   if(argc < 2){
-    fprintf(stderr, "Usage: mkfs fs.img files...\n");
+    fprintf(stderr, "Usage: mkfs <fs.img> <kernel image> <files...\n");
     exit(1);
   }
 
@@ -117,8 +117,6 @@ main(int argc, char *argv[])
   rootino = ialloc(T_DIR);
   assert(rootino == ROOTINO);
 
-  binino = ialloc(T_DIR);
-
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, ".");
@@ -129,18 +127,35 @@ main(int argc, char *argv[])
   strcpy(de.name, "..");
   iappend(rootino, &de, sizeof(de));
 
+  // copy kernel file
+  if((fd = open(argv[2], 0)) < 0)
+    die(argv[2]);
+  inum = ialloc(T_FILE);
+  bzero(&de, sizeof(de));
+  de.inum = xshort(inum);
+  strncpy(de.name, "xv6", DIRSIZ);
+  iappend(rootino, &de, sizeof(de));
+  while((cc = read(fd, buf, sizeof(buf))) > 0)
+    iappend(inum, buf, cc);
+  close(fd);
+
+  binino = ialloc(T_DIR);
+
   bzero(&de, sizeof(de));
   de.inum = xshort(binino);
   strcpy(de.name, "bin");
   iappend(rootino, &de, sizeof(de));
 
-  for(i = 2; i < argc; i++){
+  for(i = 3; i < argc; i++){
     char *shortname;
     if(strncmp(argv[i], "user/bin/", 9) == 0) {
       shortname = argv[i] + 9;
       this_file_is_in_bin = 1;
     } else if(strncmp(argv[i], "user/", 5) == 0) {
       shortname = argv[i] + 5;
+      this_file_is_in_bin = 0;
+    } else if(strncmp(argv[i], "kernel/", 7) == 0) {
+      shortname = argv[i] + 7;
       this_file_is_in_bin = 0;
     } else {
       shortname = argv[i];
