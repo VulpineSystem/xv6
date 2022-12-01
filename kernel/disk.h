@@ -1,3 +1,5 @@
+#pragma once
+
 //
 // disk device definitions.
 // custom interface for VulpineSystem.
