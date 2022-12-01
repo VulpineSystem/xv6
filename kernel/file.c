@@ -182,10 +182,37 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+// derived from lseek implementation at https://github.com/ctdk/xv6/blob/master/sysfile.c
 int
-fileseek(struct file *f, int n)
+fileseek(struct file *f, int offset, int base)
 {
-  f->off = n;
+  int new_offset = offset;
+  int zero_size, i;
+  char *zeroed, *z;
 
-  return 0;
+  if(base == SEEK_SET)
+    new_offset = offset;
+  if(base == SEEK_CUR)
+    new_offset = f->off + offset;
+  if(base == SEEK_END)
+    new_offset = f->ip->size + offset;
+
+  if(new_offset < 0)
+    return -1;
+
+  if(new_offset > f->ip->size){
+    zero_size = new_offset - f->ip->size;
+    zeroed = kalloc();
+    z = zeroed;
+    for (i = 0; i < PGSIZE; i++)
+      *z++ = 0;
+    while (zero_size > 0){
+      filewrite(f, *zeroed, zero_size);
+      zero_size -= PGSIZE;
+    }
+    kfree(zeroed);
+  }
+
+  f->off = new_offset;
+  return new_offset;
 }

@@ -108,16 +108,18 @@ sys_close(void)
 }
 
 uint64
-sys_seek(void)
+sys_lseek(void)
 {
   struct file *f;
-  int n;
+  int offset;
+  int base;
 
-  argint(1, &n);
+  argint(2, &base);
+  argint(1, &offset);
   if(argfd(0, 0, &f) < 0)
     return -1;
 
-  return fileseek(f, n);
+  return fileseek(f, offset, base);
 }
 
 uint64
