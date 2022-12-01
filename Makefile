@@ -81,7 +81,7 @@ $K/kernel: $(OBJS) $K/kernel.ld $U/initcode
 	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel $(OBJS)
 	$(OBJDUMP) -S $K/kernel > $K/kernel.asm
 	$(OBJDUMP) -t $K/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel.sym
-	$(OBJCOPY) -O binary $K/kernel $K/kernel.bin
+	$(OBJCOPY) -O binary $K/kernel $K/xv6
 
 $U/initcode: $U/initcode.S
 	$(CC) $(CFLAGS) -march=rv64g -nostdinc -I. -Ikernel -c $U/initcode.S -o $U/initcode.o
@@ -121,7 +121,6 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 .PRECIOUS: %.o
 
 UPROGS=\
-	$U/_init \
 	$U/bin/_cat \
 	$U/bin/_echo \
 	$U/bin/_forktest \
@@ -139,10 +138,11 @@ UPROGS=\
 	$U/bin/_zombie \
 	$U/bin/_fox \
 	$U/bin/_cp \
-	$U/bin/_mv
+	$U/bin/_mv \
+	$U/etc/_init
 
-fs.img: mkfs/mkfs $(UPROGS)
-	mkfs/mkfs fs.img $(UPROGS)
+fs.img: mkfs/mkfs $K/kernel $(UPROGS)
+	mkfs/mkfs fs.img $K/xv6 $(UPROGS)
 
 -include kernel/*.d user/*.d
 

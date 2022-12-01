@@ -68,8 +68,10 @@ xint(uint x)
 int
 main(int argc, char *argv[])
 {
-  int i, cc, fd, this_file_is_in_bin;
-  uint rootino, binino, inum, off;
+  int i, cc, fd;
+  int in_inode, in_bin, in_etc;
+  uint rootino, binino, etcino;
+  uint inum, off;
   struct dirent de;
   char buf[BSIZE];
   struct dinode din;
@@ -139,28 +141,50 @@ main(int argc, char *argv[])
     iappend(inum, buf, cc);
   close(fd);
 
+  // create /bin
   binino = ialloc(T_DIR);
-
   bzero(&de, sizeof(de));
   de.inum = xshort(binino);
   strcpy(de.name, "bin");
+  iappend(rootino, &de, sizeof(de));
+
+  // create /etc
+  etcino = ialloc(T_DIR);
+  bzero(&de, sizeof(de));
+  de.inum = xshort(etcino);
+  strcpy(de.name, "etc");
   iappend(rootino, &de, sizeof(de));
 
   for(i = 3; i < argc; i++){
     char *shortname;
     if(strncmp(argv[i], "user/bin/", 9) == 0) {
       shortname = argv[i] + 9;
-      this_file_is_in_bin = 1;
+      in_bin = 1;
+      in_etc = 0;
+    } else if(strncmp(argv[i], "user/etc/", 9) == 0) {
+      shortname = argv[i] + 9;
+      in_bin = 0;
+      in_etc = 1;
     } else if(strncmp(argv[i], "user/", 5) == 0) {
       shortname = argv[i] + 5;
-      this_file_is_in_bin = 0;
+      in_bin = 0;
+      in_etc = 0;
     } else if(strncmp(argv[i], "kernel/", 7) == 0) {
       shortname = argv[i] + 7;
-      this_file_is_in_bin = 0;
+      in_bin = 0;
+      in_etc = 0;
     } else {
       shortname = argv[i];
-      this_file_is_in_bin = 0;
+      in_bin = 0;
+      in_etc = 0;
     }
+
+    if (in_bin)
+      in_inode = binino;
+    else if (in_etc)
+      in_inode = etcino;
+    else
+      in_inode = rootino;
 
     assert(index(shortname, '/') == 0);
 
@@ -179,7 +203,7 @@ main(int argc, char *argv[])
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, shortname, DIRSIZ);
-    iappend(this_file_is_in_bin ? binino : rootino, &de, sizeof(de));
+    iappend(in_inode, &de, sizeof(de));
 
     while((cc = read(fd, buf, sizeof(buf))) > 0)
       iappend(inum, buf, cc);
