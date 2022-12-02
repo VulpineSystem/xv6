@@ -99,8 +99,10 @@ fb_console_scroll(void)
 {
   for (uint i = 1; i < CONSOLE_HEIGHT; i++) {
     memmove(&update_buffer[i - 1], &on_screen_buffer[i], CONSOLE_WIDTH);
+    memmove(&update_color_buffer[i - 1], &on_screen_color_buffer[i], CONSOLE_WIDTH);
   }
   memset(&update_buffer[CONSOLE_HEIGHT - 1], 0, CONSOLE_WIDTH);
+  memset(&update_color_buffer[CONSOLE_HEIGHT - 1], 0, CONSOLE_WIDTH);
   console_y = CONSOLE_HEIGHT - 1;
   fb_console_redraw();
 }
