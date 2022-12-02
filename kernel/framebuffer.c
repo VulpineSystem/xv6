@@ -11,6 +11,8 @@
 #include "defs.h"
 #include "proc.h"
 
+#define BACKGROUND_COLOR 0xff2e1e1e
+
 struct {
   struct spinlock lock;
 } fb;
@@ -37,6 +39,12 @@ void
 framebufferinit(void)
 {
   initlock(&fb.lock, "fb");
+
+  // fill framebuffer with background color
+  uint32 *framebuffer = (void *)0x80600000;
+  for (int i = 640*480; i > 0; i--) {
+    framebuffer[i] = BACKGROUND_COLOR;
+  }
 
   // connect read and write system calls
   devsw[FRAMEBUFFER].read = framebufferread;

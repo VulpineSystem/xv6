@@ -2,28 +2,51 @@
 #include "riscv.h"
 #include "defs.h"
 #include "font.h"
+#include "framebuffer.h"
 
+#define FOREGROUND 0
+#define BACKGROUND 1
 #define CHAR_WIDTH 8
 #define CHAR_HEIGHT 16
 #define CONSOLE_WIDTH 80
 #define CONSOLE_HEIGHT 30
-#define FRAMEBUFFER_WIDTH 640
-#define FRAMEBUFFER_HEIGHT 480
 
 static uint32 (*framebuffer)[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH] = (void *) 0x80600000;
 
 static char on_screen_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH];
+static char on_screen_color_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH][2];
 static char update_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH];
+static char update_color_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH][2];
 uint console_x = 0;
 uint console_y = 0;
+uint current_foreground_color_offset = 8;
+uint current_background_color_offset = 0;
+
+static uint colors[9] = {
+  0x2e1e1e, // black
+  0xa88bf3, // red
+  0xa1e3a6, // green
+  0xafe2f9, // yellow
+  0xfab489, // blue
+  0xaca0eb, // magenta
+  0xd5e294, // cyan
+  0xf4d6cd, // white
+  0xf4d6cd  // default
+};
 
 static inline void
-fb_console_draw_character(uint x, uint y, char character)
+fb_console_draw_character(uint x, uint y, char character, uint32 foreground_color, uint32 background_color)
 {
+  uint32 color;
   uint32 *ptr = (void *) &unifont[CHAR_WIDTH * CHAR_HEIGHT * 4 * (uint) character];
   for (uint iy = y; iy < y + CHAR_HEIGHT; iy++) {
     for (uint ix = x; ix < x + CHAR_WIDTH; ix++) {
-      (*framebuffer)[iy][ix] = *ptr++;
+      if (*ptr++ == 0xFFFFFFFF)
+        color = foreground_color;
+      else
+        color = background_color;
+      color |= 0xFF000000;
+      (*framebuffer)[iy][ix] = color;
     }
   }
 }
@@ -31,12 +54,22 @@ fb_console_draw_character(uint x, uint y, char character)
 void
 fb_console_redraw(void)
 {
+  uint foreground_color_offset;
+  uint background_color_offset;
   for (uint y = 0; y < CONSOLE_HEIGHT; y++) {
     for (uint x = 0; x < CONSOLE_WIDTH; x++) {
-      if (on_screen_buffer[y][x] != update_buffer[y][x]) {
+      if ((on_screen_buffer[y][x] != update_buffer[y][x]) ||
+          (on_screen_color_buffer[y][x][FOREGROUND] != update_color_buffer[y][x][FOREGROUND]) ||
+          (on_screen_color_buffer[y][x][BACKGROUND] != update_color_buffer[y][x][BACKGROUND])) {
         on_screen_buffer[y][x] = update_buffer[y][x];
-        fb_console_draw_character(x * CHAR_WIDTH, y * CHAR_HEIGHT, update_buffer[y][x]);
+        on_screen_color_buffer[y][x][FOREGROUND] = update_color_buffer[y][x][FOREGROUND];
+        on_screen_color_buffer[y][x][BACKGROUND] = update_color_buffer[y][x][BACKGROUND];
+        foreground_color_offset = update_color_buffer[y][x][FOREGROUND];
+        background_color_offset = update_color_buffer[y][x][BACKGROUND];
+        fb_console_draw_character(x * CHAR_WIDTH, y * CHAR_HEIGHT, update_buffer[y][x], colors[foreground_color_offset], colors[background_color_offset]);
         update_buffer[y][x] = 0;
+        update_color_buffer[y][x][FOREGROUND] = 0;
+        update_color_buffer[y][x][BACKGROUND] = 0;
       }
     }
   }
@@ -45,10 +78,18 @@ fb_console_redraw(void)
 void
 fb_console_redraw_line(void)
 {
+  uint foreground_color_offset;
+  uint background_color_offset;
   for (uint x = 0; x < CONSOLE_WIDTH; x++) {
-    if (on_screen_buffer[console_y][x] != update_buffer[console_y][x]) {
+    if ((on_screen_buffer[console_y][x] != update_buffer[console_y][x]) ||
+        (on_screen_color_buffer[console_y][x][FOREGROUND] != update_color_buffer[console_y][x][FOREGROUND]) ||
+        (on_screen_color_buffer[console_y][x][BACKGROUND] != update_color_buffer[console_y][x][BACKGROUND])) {
       on_screen_buffer[console_y][x] = update_buffer[console_y][x];
-      fb_console_draw_character(x * CHAR_WIDTH, console_y * CHAR_HEIGHT, update_buffer[console_y][x]);
+      on_screen_color_buffer[console_y][x][FOREGROUND] = update_color_buffer[console_y][x][FOREGROUND];
+      on_screen_color_buffer[console_y][x][BACKGROUND] = update_color_buffer[console_y][x][BACKGROUND];
+      foreground_color_offset = update_color_buffer[console_y][x][FOREGROUND];
+      background_color_offset = update_color_buffer[console_y][x][BACKGROUND];
+      fb_console_draw_character(x * CHAR_WIDTH, console_y * CHAR_HEIGHT, update_buffer[console_y][x], colors[foreground_color_offset], colors[background_color_offset]);
     }
   }
 }
@@ -98,8 +139,10 @@ fb_console_print_character(char character)
   if (console_y >= CONSOLE_HEIGHT)
     fb_console_scroll();
 
-  // set character in the update buffer
+  // set character and colors in the update buffers
   update_buffer[console_y][console_x] = character;
+  update_color_buffer[console_y][console_x][FOREGROUND] = current_foreground_color_offset;
+  update_color_buffer[console_y][console_x][BACKGROUND] = current_background_color_offset;
 
   // increment X counter
   console_x++;

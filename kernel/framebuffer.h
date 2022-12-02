@@ -1,0 +1,4 @@
+#pragma once
+
+#define FRAMEBUFFER_WIDTH 640
+#define FRAMEBUFFER_HEIGHT 480
