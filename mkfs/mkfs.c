@@ -123,7 +123,6 @@ main(int argc, char *argv[])
   de.inum = xshort(rootino);
   strcpy(de.name, ".");
   iappend(rootino, &de, sizeof(de));
-
   bzero(&de, sizeof(de));
   de.inum = xshort(rootino);
   strcpy(de.name, "..");
@@ -147,6 +146,14 @@ main(int argc, char *argv[])
   de.inum = xshort(binino);
   strcpy(de.name, "bin");
   iappend(rootino, &de, sizeof(de));
+  bzero(&de, sizeof(de));
+  de.inum = xshort(binino);
+  strcpy(de.name, ".");
+  iappend(binino, &de, sizeof(de));
+  bzero(&de, sizeof(de));
+  de.inum = xshort(rootino);
+  strcpy(de.name, "..");
+  iappend(binino, &de, sizeof(de));
 
   // create /etc
   etcino = ialloc(T_DIR);
@@ -154,6 +161,14 @@ main(int argc, char *argv[])
   de.inum = xshort(etcino);
   strcpy(de.name, "etc");
   iappend(rootino, &de, sizeof(de));
+  bzero(&de, sizeof(de));
+  de.inum = xshort(etcino);
+  strcpy(de.name, ".");
+  iappend(etcino, &de, sizeof(de));
+  bzero(&de, sizeof(de));
+  de.inum = xshort(rootino);
+  strcpy(de.name, "..");
+  iappend(etcino, &de, sizeof(de));
 
   for(i = 3; i < argc; i++){
     char *shortname;
