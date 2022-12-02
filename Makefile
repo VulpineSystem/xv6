@@ -2,6 +2,9 @@ B=bootloader
 K=kernel
 U=user
 
+BOOT_OBJS = \
+	$B/bootloader.o
+
 OBJS = \
 	$K/entry.o \
 	$K/start.o \
@@ -77,6 +80,12 @@ endif
 
 LDFLAGS = -z max-page-size=4096
 
+all: $B/bootloader $K/kernel fs.img
+
+$B/bootloader: $(BOOT_OBJS) $B/bootloader.ld
+	$(LD) $(LDFLAGS) -T $B/bootloader.ld -o $B/bootloader $(BOOT_OBJS)
+	$(OBJCOPY) -O binary $B/bootloader $B/bootloader.bin
+
 $K/kernel: $(OBJS) $K/kernel.ld $U/initcode
 	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel $(OBJS)
 	$(OBJDUMP) -S $K/kernel > $K/kernel.asm
@@ -149,7 +158,7 @@ fs.img: mkfs/mkfs $K/kernel $(UPROGS)
 clean:
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*/*.o */*.d */*/*.d */*.asm */*/*.asm */*.sym */*/*.sym \
-	$U/initcode $U/initcode.out $K/kernel fs.img \
+	$U/initcode $U/initcode.out $K/kernel $K/kernel.bin $B/bootloader $B/bootloader.bin fs.img \
 	mkfs/mkfs .gdbinit \
         $U/usys.S \
 	$(UPROGS)
