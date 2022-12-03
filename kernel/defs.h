@@ -195,6 +195,8 @@ void            fb_console_redraw(void);
 void            fb_console_redraw_line(void);
 
 // keyboard.c
+void            keyboardinit(void);
+int             read_keyboard_raw(void);
 int             read_keyboard(void);
 int             scancode_to_ascii(int);
 

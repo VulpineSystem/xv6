@@ -1,6 +1,14 @@
 #include "types.h"
 #include "riscv.h"
 #include "memlayout.h"
+#include "param.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
+#include "memlayout.h"
+#include "defs.h"
+#include "proc.h"
 
 #define LSHIFT_PRESS   0x2A
 #define LSHIFT_RELEASE 0xAA
@@ -8,6 +16,10 @@
 #define RSHIFT_RELEASE 0xB6
 #define LCTRL_PRESS    0x1D
 #define LCTRL_RELEASE  0x9D
+
+struct {
+  struct spinlock lock;
+} kbd;
 
 int shift = 0;
 int ctrl = 0;
@@ -81,8 +93,50 @@ char scancode_map_shift[128] = {
   0, // All other keys are undefined
 };
 
+//
+// user read()s from the keyboard go here.
+//
 int
-read_keyboard()
+keyboardread(int user_dst, uint64 dst, uint off, int n)
+{
+  int scancode = read_keyboard_raw();
+  int r = 0;
+  for (; n > 0; n--) {
+    r = either_copyout(user_dst, dst++, &scancode, 1);
+    if (r == -1)
+      break;
+  }
+  return r;
+}
+
+void
+keyboardinit(void)
+{
+  initlock(&kbd.lock, "kbd");
+
+  // connect read and write system calls
+  devsw[KEYBOARD].read = keyboardread;
+  devsw[KEYBOARD].write = 0;
+}
+
+int
+read_keyboard_raw(void)
+{
+  int scancode = *(int *) KBD0;
+  if (scancode == LSHIFT_PRESS || scancode == RSHIFT_PRESS)
+    shift = 1;
+  else if (scancode == LSHIFT_RELEASE || scancode == RSHIFT_RELEASE)
+    shift = 0;
+  else if (scancode == LCTRL_PRESS)
+    ctrl = 1;
+  else if (scancode == LCTRL_RELEASE)
+    ctrl = 0;
+
+  return scancode;
+}
+
+int
+read_keyboard(void)
 {
   int scancode = *(int *) KBD0;
   if (scancode == LSHIFT_PRESS || scancode == RSHIFT_PRESS) {

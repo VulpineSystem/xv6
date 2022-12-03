@@ -45,6 +45,7 @@ extern struct devsw devsw[];
 
 #define CONSOLE 1
 #define FRAMEBUFFER 2
+#define KEYBOARD 3
 
 // lseek defines
 #define SEEK_SET 0
