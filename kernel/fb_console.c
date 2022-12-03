@@ -10,6 +10,9 @@
 #define CHAR_HEIGHT 16
 #define CONSOLE_WIDTH 80
 #define CONSOLE_HEIGHT 30
+#define DEFAULT_FOREGROUND_COLOR 8
+#define DEFAULT_BACKGROUND_COLOR 0
+#define MAX_ESC_CODE_PARAMETERS 8
 
 static uint32 (*framebuffer)[FRAMEBUFFER_HEIGHT][FRAMEBUFFER_WIDTH] = (void *) 0x80600000;
 
@@ -17,10 +20,14 @@ static char on_screen_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH];
 static char on_screen_color_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH][2];
 static char update_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH];
 static char update_color_buffer[CONSOLE_HEIGHT][CONSOLE_WIDTH][2];
-uint console_x = 0;
-uint console_y = 0;
-uint current_foreground_color_offset = 8;
-uint current_background_color_offset = 0;
+static uint console_x = 0;
+static uint console_y = 0;
+static uint current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
+static uint current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
+
+static uint escape_code_parameters[MAX_ESC_CODE_PARAMETERS];
+static uint escape_code_parameter_count = 0;
+static int is_in_escape_code = 0;
 
 static uint colors[9] = {
   0x2e1e1e, // black
@@ -108,6 +115,52 @@ fb_console_scroll(void)
 }
 
 void
+fb_console_handle_esc_code(char character)
+{
+  if (character >= '0' && character <= '9') {
+    escape_code_parameters[escape_code_parameter_count] *= 10;
+    escape_code_parameters[escape_code_parameter_count] += character - '0';
+    return;
+  }
+
+  if (character == '[') {
+    return;
+  } else if (character == ';') {
+    escape_code_parameter_count++;
+    if (escape_code_parameter_count >= MAX_ESC_CODE_PARAMETERS)
+      escape_code_parameter_count = 0;
+    return;
+  }
+
+  is_in_escape_code = 0;
+
+  // TODO: implement the rest of the control codes
+  if (character == 'm') {
+    // set color
+    for (int i = 0; i <= escape_code_parameter_count; i++) {
+      uint parameter = escape_code_parameters[i];
+      if (parameter == 0) {
+        // reset colors
+        current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
+        current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
+      } else if (parameter == 39) {
+        // reset foreground color
+        current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
+      } else if (parameter == 49) {
+        // reset background color
+        current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
+      } else if (parameter >= 30 && parameter <= 37) {
+        // set foreground color
+        current_foreground_color_offset = parameter - 30;
+      } else if (parameter >= 40 && parameter <= 47) {
+        // set background color
+        current_background_color_offset = parameter - 40;
+      }
+    }
+  }
+}
+
+void
 fb_console_print_character(char character)
 {
   // check for various characters
@@ -126,6 +179,18 @@ fb_console_print_character(char character)
     console_y++;
     if (console_y >= CONSOLE_HEIGHT)
       fb_console_scroll();
+    return;
+  } else if (character == '\e') {
+    is_in_escape_code = 1;
+    escape_code_parameter_count = 0;
+    for (int i = 0; i < MAX_ESC_CODE_PARAMETERS; i++) {
+      escape_code_parameters[i] = 0;
+    }
+    return;
+  }
+
+  if (is_in_escape_code) {
+    fb_console_handle_esc_code(character);
     return;
   }
 
