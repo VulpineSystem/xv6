@@ -30,6 +30,11 @@ main(void)
     open("/dev/framebuffer", O_RDWR);
   }
 
+  if(open("/dev/keyboard", O_RDWR) < 0){
+    mknod("/dev/keyboard", KEYBOARD, 0);
+    open("/dev/keyboard", O_RDWR);
+  }
+
   for(;;){
     printf("init: starting /bin/sh\n");
     pid = fork();
