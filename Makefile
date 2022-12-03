@@ -148,6 +148,7 @@ UPROGS=\
 	$U/bin/_fox \
 	$U/bin/_cp \
 	$U/bin/_mv \
+	$U/bin/_kbd_demo \
 	$U/etc/_init
 
 fs.img: mkfs/mkfs $K/kernel $(UPROGS)
