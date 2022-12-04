@@ -145,12 +145,12 @@ UPROGS=\
 	$U/bin/_grind \
 	$U/bin/_wc \
 	$U/bin/_zombie \
-	$U/bin/_fox \
 	$U/bin/_cp \
 	$U/bin/_mv \
-	$U/bin/_kbd_demo \
-	$U/bin/_color_demo \
-	$U/etc/_init
+	$U/etc/_init \
+	$U/demos/_color_demo \
+	$U/demos/_fb_demo \
+	$U/demos/_kbd_demo
 
 fs.img: mkfs/mkfs $K/kernel $(UPROGS)
 	mkfs/mkfs fs.img $K/xv6 $(UPROGS)

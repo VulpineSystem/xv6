@@ -69,8 +69,8 @@ int
 main(int argc, char *argv[])
 {
   int i, cc, fd;
-  int in_inode, in_bin, in_etc;
-  uint rootino, binino, etcino;
+  int in_inode, in_bin, in_etc, in_demos;
+  uint rootino, binino, etcino, demosino;
   uint inum, off;
   struct dirent de;
   char buf[BSIZE];
@@ -170,34 +170,61 @@ main(int argc, char *argv[])
   strcpy(de.name, "..");
   iappend(etcino, &de, sizeof(de));
 
+  // create /demos
+  demosino = ialloc(T_DIR);
+  bzero(&de, sizeof(de));
+  de.inum = xshort(demosino);
+  strcpy(de.name, "demos");
+  iappend(rootino, &de, sizeof(de));
+  bzero(&de, sizeof(de));
+  de.inum = xshort(demosino);
+  strcpy(de.name, ".");
+  iappend(demosino, &de, sizeof(de));
+  bzero(&de, sizeof(de));
+  de.inum = xshort(rootino);
+  strcpy(de.name, "..");
+  iappend(demosino, &de, sizeof(de));
+
   for(i = 3; i < argc; i++){
     char *shortname;
     if(strncmp(argv[i], "user/bin/", 9) == 0) {
       shortname = argv[i] + 9;
       in_bin = 1;
       in_etc = 0;
+      in_demos = 0;
     } else if(strncmp(argv[i], "user/etc/", 9) == 0) {
       shortname = argv[i] + 9;
       in_bin = 0;
       in_etc = 1;
+      in_demos = 0;
+    } else if(strncmp(argv[i], "user/demos/", 11) == 0) {
+      shortname = argv[i] + 11;
+      in_bin = 0;
+      in_etc = 0;
+      in_demos = 1;
     } else if(strncmp(argv[i], "user/", 5) == 0) {
       shortname = argv[i] + 5;
       in_bin = 0;
       in_etc = 0;
+      in_demos = 0;
     } else if(strncmp(argv[i], "kernel/", 7) == 0) {
       shortname = argv[i] + 7;
       in_bin = 0;
       in_etc = 0;
+      in_demos = 0;
     } else {
       shortname = argv[i];
       in_bin = 0;
       in_etc = 0;
+      in_demos = 0;
     }
 
     if (in_bin)
       in_inode = binino;
     else if (in_etc)
       in_inode = etcino;
+    else if (in_demos)
+      in_inode = demosino;
     else
       in_inode = rootino;
 
