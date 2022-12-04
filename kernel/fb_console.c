@@ -201,7 +201,7 @@ fb_console_handle_esc_code(char character)
     }
 
     case 'D': { // move left
-      console_x += escape_code_parameters[0];
+      console_x -= escape_code_parameters[0];
       if (console_x < 0)
         console_x = 0;
       break;
