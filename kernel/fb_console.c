@@ -135,27 +135,81 @@ fb_console_handle_esc_code(char character)
   is_in_escape_code = 0;
 
   // TODO: implement the rest of the control codes
-  if (character == 'm') {
-    // set color
-    for (int i = 0; i <= escape_code_parameter_count; i++) {
-      uint parameter = escape_code_parameters[i];
-      if (parameter == 0) {
-        // reset colors
-        current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
-        current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
-      } else if (parameter == 39) {
-        // reset foreground color
-        current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
-      } else if (parameter == 49) {
-        // reset background color
-        current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
-      } else if (parameter >= 30 && parameter <= 37) {
-        // set foreground color
-        current_foreground_color_offset = parameter - 30;
-      } else if (parameter >= 40 && parameter <= 47) {
-        // set background color
-        current_background_color_offset = parameter - 40;
+  switch (character) {
+    case 'm': { // set color
+      for (int i = 0; i <= escape_code_parameter_count; i++) {
+        uint parameter = escape_code_parameters[i];
+        if (parameter == 0) {
+          // reset colors
+          current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
+          current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
+        } else if (parameter == 39) {
+          // reset foreground color
+          current_foreground_color_offset = DEFAULT_FOREGROUND_COLOR;
+        } else if (parameter == 49) {
+          // reset background color
+          current_background_color_offset = DEFAULT_BACKGROUND_COLOR;
+        } else if (parameter >= 30 && parameter <= 37) {
+          // set foreground color
+          current_foreground_color_offset = parameter - 30;
+        } else if (parameter >= 40 && parameter <= 47) {
+          // set background color
+          current_background_color_offset = parameter - 40;
+        }
       }
+      break;
+    }
+
+    case 'H': { // home cursor OR move to position depending on number of paramters
+      if (escape_code_parameter_count == 0) {
+        // no paramters, so just home the cursor
+        console_x = 0;
+        console_y = 0;
+      } else {
+        // set the cursor position
+        console_x = escape_code_parameters[0];
+        console_y = escape_code_parameters[1];
+      }
+      break;
+    }
+
+    case 'f': { // move to position
+      console_x = escape_code_parameters[0];
+      console_y = escape_code_parameters[1];
+      break;
+    }
+
+    case 'A': { // move up
+      console_y -= escape_code_parameters[0];
+      if (console_y < 0)
+        console_y = 0;
+      break;
+    }
+
+    case 'B': { // move down
+      console_y += escape_code_parameters[0];
+      if (console_y > CONSOLE_HEIGHT - 1)
+        console_y = CONSOLE_HEIGHT - 1;
+      break;
+    }
+
+    case 'C': { // move right
+      console_x += escape_code_parameters[0];
+      if (console_x > CONSOLE_WIDTH - 1)
+        console_x = CONSOLE_WIDTH - 1;
+      break;
+    }
+
+    case 'D': { // move left
+      console_x += escape_code_parameters[0];
+      if (console_x < 0)
+        console_x = 0;
+      break;
+    }
+
+    case 'G': { // move to column
+      console_x = escape_code_parameters[0];
+      break;
     }
   }
 }
@@ -171,6 +225,11 @@ fb_console_print_character(char character)
     // backspace
     if (console_x > 0)
       console_x--;
+    return;
+  } else if (character == '\r') {
+    // carriage return
+    fb_console_redraw_line();
+    console_x = 0;
     return;
   } else if (character == '\n') {
     // line feed
