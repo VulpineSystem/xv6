@@ -1,5 +1,3 @@
-#include <stdarg.h>
-
 #include "types.h"
 #include "param.h"
 #include "spinlock.h"
@@ -23,7 +21,7 @@ struct {
 int
 framebufferwrite(int user_src, uint64 src, uint off, int n)
 {
-  return either_copyin((void *)0x80600000+off, user_src, src, n);
+  return either_copyin((void *)0x80600000+(off%FRAMEBUFFER0_SIZE), user_src, src, n);
 }
 
 //
@@ -32,7 +30,7 @@ framebufferwrite(int user_src, uint64 src, uint off, int n)
 int
 framebufferread(int user_dst, uint64 dst, uint off, int n)
 {
-  return either_copyout(user_dst, dst, (void *)0x80600000+off, n);
+  return either_copyout(user_dst, dst, (void *)0x80600000+(off%FRAMEBUFFER0_SIZE), n);
 }
 
 void
